@@ -1,98 +1,172 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  Bell,
+  BookOpen,
+  CheckSquare,
+  Settings,
+  Wind,
+} from "lucide-react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { JournalTab } from "../components/Journal";
+import { MeditationTab } from "../components/Meditation";
+import { RemindersTab } from "../components/Reminders";
+import { SettingsTab } from "../components/Settings";
+import { TodoTab } from "../components/Todo";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+type Tab = "todo" | "journal" | "reminders" | "meditation" | "settings";
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
+const TABS: { id: Tab; label: string; icon: React.ReactNode; short: string }[] =
+  [
+    {
+      id: "todo",
+      label: "To-Do",
+      icon: <CheckSquare size={20} />,
+      short: "Tasks",
+    },
+    {
+      id: "journal",
+      label: "Journal",
+      icon: <BookOpen size={20} />,
+      short: "Journal",
+    },
+    {
+      id: "reminders",
+      label: "Reminders",
+      icon: <Bell size={20} />,
+      short: "Remind",
+    },
+    {
+      id: "meditation",
+      label: "Breathe",
+      icon: <Wind size={20} />,
+      short: "Breathe",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <Settings size={20} />,
+      short: "Settings",
+    },
+  ];
+
+const TAB_TITLES: Record<Tab, { title: string; subtitle: string }> = {
+  todo: {
+    title: "Your Tasks",
+    subtitle: "One thing at a time is still progress.",
+  },
+  journal: {
+    title: "Journal",
+    subtitle: "A space to think, vent, or celebrate.",
+  },
+  reminders: {
+    title: "Reminders",
+    subtitle: "Gentle nudges so nothing gets lost.",
+  },
+  meditation: { title: "Breathe", subtitle: "Pause. Reset. Come back." },
+  settings: {
+    title: "Settings",
+    subtitle: "Make this app work for your brain.",
+  },
+};
+
+const GREETINGS = [
+  "Hey, you're here. 👋",
+  "Ready when you are.",
+  "No rush. Just one step.",
+  "You've got this. 💜",
+];
+
+export default function Index() {
+  {
+    /* MARKER-MAKE-KIT-INVOKED */
   }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  const [tab, setTab] = useState<Tab>("todo");
+  const insets = useSafeAreaInsets();
+  const greeting = GREETINGS[new Date().getHours() % GREETINGS.length];
+  const { title, subtitle } = TAB_TITLES[tab];
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <View
+      className="flex-1 bg-background"
+      style={[{ flex: 1, backgroundColor: "#f7f5f2", paddingTop: insets.top }]}
+    >
+      {/* Header */}
+      <View
+        className="px-5 pt-4 pb-4"
+        style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 }}
+      >
+        <Text
+          className="text-muted-foreground"
+          style={{ color: "#7a7568", marginBottom: 4 }}
+        >
+          {greeting}
+        </Text>
+        <View>
+          <Text
+            className="text-foreground text-2xl font-medium"
+            style={{ color: "#2d2a35", fontSize: 24, fontWeight: "500" }}
+          >
+            {title}
+          </Text>
+          <Text
+            className="text-muted-foreground mt-1"
+            style={{ color: "#7a7568", marginTop: 4 }}
+          >
+            {subtitle}
+          </Text>
+        </View>
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
+        className="flex-1"
+      >
+        {tab === "todo" && <TodoTab />}
+        {tab === "journal" && <JournalTab />}
+        {tab === "reminders" && <RemindersTab />}
+        {tab === "meditation" && <MeditationTab />}
+        {tab === "settings" && <SettingsTab />}
+      </ScrollView>
+
+      {/* Bottom nav */}
+      <View className="absolute bottom-4 left-4 right-4 bg-card/90 rounded-xl border border-border">
+        <View className="flex-row">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <Pressable
+                key={t.id}
+                onPress={() => setTab(t.id)}
+                className="flex-1 items-center py-3"
+              >
+                <MaterialIcons
+                  name={
+                    t.id === "todo"
+                      ? "check-box"
+                      : t.id === "journal"
+                        ? "book"
+                        : t.id === "reminders"
+                          ? "notifications"
+                          : t.id === "meditation"
+                            ? "spa"
+                            : "settings"
+                  }
+                  size={20}
+                  color={active ? "#7c6bae" : "#7a7568"}
+                />
+                <Text
+                  className={`${active ? "text-primary" : "text-muted-foreground"} text-xs mt-1`}
+                >
+                  {t.short}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
   );
 }
-
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
