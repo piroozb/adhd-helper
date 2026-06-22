@@ -1,6 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Pressable, Text, View, ScrollView } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useAppData } from "../lib/app-data";
+import { useAuth } from "../lib/auth";
+import { AnimatedToggle } from "./ui/animated-toggle";
 
 type Theme = "light" | "dark" | "system";
 
@@ -37,25 +40,6 @@ const defaultSettings: Settings = {
   reduceMotion: false,
   accentColor: "lavender",
 };
-
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onChange}
-      className={`w-11 h-6 rounded-full ${checked ? "bg-primary" : "bg-muted"} items-center`}
-    >
-      <View
-        className={`w-4 h-4 rounded-full bg-white ${checked ? "ml-6" : "ml-1"}`}
-      />
-    </Pressable>
-  );
-}
 
 function Section({
   title,
@@ -106,10 +90,64 @@ function Row({
 }
 
 export function SettingsTab() {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const { settings, loading, updateSettings } = useAppData();
+  const { user, signOut, updateUser } = useAuth();
+  const [newEmail, setNewEmail] = useState(user?.email ?? "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
+  const [accountError, setAccountError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNewEmail(user?.email ?? "");
+  }, [user]);
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
-    setSettings({ ...settings, [key]: value });
+    updateSettings({ [key]: value } as Partial<Settings>);
+
+  const handleUpdateEmail = async () => {
+    setAccountError(null);
+    setAccountMessage(null);
+    if (!newEmail.trim()) {
+      setAccountError("Please enter a valid email.");
+      return;
+    }
+    const { error } = await updateUser({ email: newEmail.trim() });
+    if (error) {
+      setAccountError(error);
+      return;
+    }
+    setAccountMessage("Email update requested. Check your inbox to confirm.");
+  };
+
+  const handleUpdatePassword = async () => {
+    setAccountError(null);
+    setAccountMessage(null);
+    if (!newPassword) {
+      setAccountError("Please enter a new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setAccountError("Passwords do not match.");
+      return;
+    }
+    const { error } = await updateUser({ password: newPassword });
+    if (error) {
+      setAccountError(error);
+      return;
+    }
+    setAccountMessage("Password updated successfully.");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background p-10">
+        <Text className="text-muted-foreground">Loading settings…</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView className="flex-col gap-5">
@@ -160,9 +198,13 @@ export function SettingsTab() {
           label="Enable notifications"
           sublabel="Get reminded for your scheduled alerts"
           right={
-            <Toggle
+            <AnimatedToggle
               checked={settings.notifications}
               onChange={() => update("notifications", !settings.notifications)}
+              activeColor={
+                ACCENT_COLORS.find((c) => c.id === settings.accentColor)
+                  ?.value ?? "#0ea5e9"
+              }
             />
           }
         />
@@ -172,9 +214,13 @@ export function SettingsTab() {
           sublabel="Soft chimes for reminders"
           last
           right={
-            <Toggle
+            <AnimatedToggle
               checked={settings.sounds}
               onChange={() => update("sounds", !settings.sounds)}
+              activeColor={
+                ACCENT_COLORS.find((c) => c.id === settings.accentColor)
+                  ?.value ?? "#0ea5e9"
+              }
             />
           }
         />
@@ -245,10 +291,14 @@ export function SettingsTab() {
           label="Morning check-in"
           sublabel="Gentle prompt to plan your day"
           right={
-            <Toggle
+            <AnimatedToggle
               checked={settings.morningCheckIn}
               onChange={() =>
                 update("morningCheckIn", !settings.morningCheckIn)
+              }
+              activeColor={
+                ACCENT_COLORS.find((c) => c.id === settings.accentColor)
+                  ?.value ?? "#0ea5e9"
               }
             />
           }
@@ -258,10 +308,14 @@ export function SettingsTab() {
           label="Evening reflection"
           sublabel="Review and wind down"
           right={
-            <Toggle
+            <AnimatedToggle
               checked={settings.eveningReflection}
               onChange={() =>
                 update("eveningReflection", !settings.eveningReflection)
+              }
+              activeColor={
+                ACCENT_COLORS.find((c) => c.id === settings.accentColor)
+                  ?.value ?? "#0ea5e9"
               }
             />
           }
@@ -304,12 +358,80 @@ export function SettingsTab() {
           sublabel="Minimize animations throughout the app"
           last
           right={
-            <Toggle
+            <AnimatedToggle
               checked={settings.reduceMotion}
               onChange={() => update("reduceMotion", !settings.reduceMotion)}
+              activeColor={
+                ACCENT_COLORS.find((c) => c.id === settings.accentColor)
+                  ?.value ?? "#0ea5e9"
+              }
             />
           }
         />
+      </Section>
+
+      <Section title="ACCOUNT">
+        <Row
+          icon={<MaterialIcons name="person" size={16} />}
+          label="Signed in as"
+          sublabel={user?.email ?? "No email"}
+          right={
+            <Pressable
+              onPress={signOut}
+              className="rounded-full bg-destructive px-3 py-2 items-center justify-center"
+            >
+              <Text className="text-primary-foreground text-xs">Log out</Text>
+            </Pressable>
+          }
+        />
+        <View className="flex-col gap-3 px-4 py-3">
+          <Text className="text-muted-foreground text-sm">Update email</Text>
+          <TextInput
+            className="rounded-2xl border border-border bg-card px-4 py-3 text-foreground"
+            placeholder="your@email.com"
+            placeholderTextColor="#9ca3af"
+            value={newEmail}
+            onChangeText={setNewEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Pressable
+            onPress={handleUpdateEmail}
+            className="rounded-2xl bg-primary px-4 py-3 items-center"
+          >
+            <Text className="text-primary-foreground">Update email</Text>
+          </Pressable>
+
+          <Text className="text-muted-foreground text-sm">Update password</Text>
+          <TextInput
+            secureTextEntry
+            className="rounded-2xl border border-border bg-card px-4 py-3 text-foreground"
+            placeholder="New password"
+            placeholderTextColor="#9ca3af"
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+          <TextInput
+            secureTextEntry
+            className="rounded-2xl border border-border bg-card px-4 py-3 text-foreground"
+            placeholder="Confirm password"
+            placeholderTextColor="#9ca3af"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          {accountError ? (
+            <Text className="text-sm text-destructive">{accountError}</Text>
+          ) : null}
+          {accountMessage ? (
+            <Text className="text-sm text-foreground">{accountMessage}</Text>
+          ) : null}
+          <Pressable
+            onPress={handleUpdatePassword}
+            className="rounded-2xl bg-secondary px-4 py-3 items-center"
+          >
+            <Text className="text-foreground">Update password</Text>
+          </Pressable>
+        </View>
       </Section>
 
       <View className="p-4 rounded-xl bg-secondary border border-border">

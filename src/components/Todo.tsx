@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useAppData } from "../lib/app-data";
 
 type Priority = "high" | "medium" | "low";
 type Todo = {
@@ -8,7 +9,7 @@ type Todo = {
   text: string;
   done: boolean;
   priority: Priority;
-  createdAt: Date;
+  createdAt: string;
 };
 
 const PRIORITY_CONFIG: Record<
@@ -20,56 +21,34 @@ const PRIORITY_CONFIG: Record<
   low: { label: "Low", color: "text-green-500", dot: "bg-green-400" },
 };
 
-const initialTodos: Todo[] = [
-  {
-    id: "1",
-    text: "Take a 5-minute break",
-    done: false,
-    priority: "high",
-    createdAt: new Date(),
-  },
-  {
-    id: "2",
-    text: "Drink a glass of water",
-    done: true,
-    priority: "medium",
-    createdAt: new Date(),
-  },
-  {
-    id: "3",
-    text: "Write in journal",
-    done: false,
-    priority: "low",
-    createdAt: new Date(),
-  },
-];
-
 export function TodoTab() {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos);
+  const { todos, loading, addTodo, toggleTodo, removeTodo } = useAppData();
   const [input, setInput] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
   const [showCompleted, setShowCompleted] = useState(true);
 
-  const addTodo = () => {
+  const addTodoItem = async () => {
     if (!input.trim()) return;
-    setTodos([
-      {
-        id: Date.now().toString(),
-        text: input.trim(),
-        done: false,
-        priority,
-        createdAt: new Date(),
-      },
-      ...todos,
-    ]);
+    await addTodo(input.trim(), priority);
     setInput("");
   };
 
-  const toggle = (id: string) =>
-    setTodos(todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = async (id: string) => {
+    await toggleTodo(id);
+  };
 
-  const remove = (id: string) => setTodos(todos.filter((t) => t.id !== id));
+  const remove = async (id: string) => {
+    await removeTodo(id);
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background py-10">
+        <Text className="text-muted-foreground">Loading your tasks…</Text>
+      </View>
+    );
+  }
 
   const filtered = todos.filter((t) => {
     if (filter === "active") return !t.done;
@@ -90,7 +69,7 @@ export function TodoTab() {
           placeholderTextColor="#9ca3af"
           value={input}
           onChangeText={(t) => setInput(t)}
-          onSubmitEditing={addTodo}
+          onSubmitEditing={addTodoItem}
         />
         {/* Priority selector: cycle on press */}
         <Pressable
@@ -110,7 +89,7 @@ export function TodoTab() {
           </Text>
         </Pressable>
         <Pressable
-          onPress={addTodo}
+          onPress={addTodoItem}
           className="rounded-xl px-4 py-3 bg-primary"
         >
           <MaterialIcons name="add" size={18} color="#fff" />

@@ -1,11 +1,17 @@
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AppDataProvider } from "../lib/app-data";
+import { AuthProvider } from "../lib/auth";
 import "../styles/tailwind.css";
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerTitle: "ADHD Helper" }} />
+      <AuthProvider>
+        <AppDataProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AppDataProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

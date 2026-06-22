@@ -1,4 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import {
   Bell,
   BookOpen,
@@ -6,7 +7,7 @@ import {
   Settings,
   Wind,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { JournalTab } from "../components/Journal";
@@ -14,6 +15,7 @@ import { MeditationTab } from "../components/Meditation";
 import { RemindersTab } from "../components/Reminders";
 import { SettingsTab } from "../components/Settings";
 import { TodoTab } from "../components/Todo";
+import { useAuth } from "../lib/auth";
 
 type Tab = "todo" | "journal" | "reminders" | "meditation" | "settings";
 
@@ -79,6 +81,8 @@ const GREETINGS = [
 ];
 
 export default function Index() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   {
     /* MARKER-MAKE-KIT-INVOKED */
   }
@@ -86,6 +90,20 @@ export default function Index() {
   const insets = useSafeAreaInsets();
   const greeting = GREETINGS[new Date().getHours() % GREETINGS.length];
   const { title, subtitle } = TAB_TITLES[tab];
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Text className="text-muted-foreground">Loading your workspace…</Text>
+      </View>
+    );
+  }
 
   return (
     <View

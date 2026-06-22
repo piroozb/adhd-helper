@@ -1,19 +1,20 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { useAppData } from "../lib/app-data";
 
 type Mood = "great" | "good" | "okay" | "low" | "rough";
 type Entry = {
   id: string;
-  date: Date;
-  mood: Mood;
+  date: string;
+  mood: string;
   text: string;
   tags: string[];
 };
@@ -60,25 +61,9 @@ const PROMPT_SUGGESTIONS = [
   "What do I need to let go of?",
 ];
 
-const initialEntries: Entry[] = [
-  {
-    id: "1",
-    date: new Date(Date.now() - 86400000),
-    mood: "good",
-    text: "Had a productive morning. Used the timer and got through my top 3 tasks. Felt scattered in the afternoon but that's okay.",
-    tags: ["productive", "focus"],
-  },
-  {
-    id: "2",
-    date: new Date(Date.now() - 2 * 86400000),
-    mood: "okay",
-    text: "Struggled to start tasks today. The hyperfocus kicked in around 3pm and I finished the project. Remember: momentum helps.",
-    tags: ["hyperfocus", "struggle"],
-  },
-];
-
 export function JournalTab() {
-  const [entries, setEntries] = useState<Entry[]>(initialEntries);
+  const { journalEntries, loading, saveJournalEntry, removeJournalEntry } =
+    useAppData();
   const [writing, setWriting] = useState(false);
   const [mood, setMood] = useState<Mood>("good");
   const [text, setText] = useState("");
@@ -96,20 +81,25 @@ export function JournalTab() {
 
   const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
 
-  const save = () => {
+  const save = async () => {
     if (!text.trim()) return;
-    setEntries([
-      { id: Date.now().toString(), date: new Date(), mood, text, tags },
-      ...entries,
-    ]);
+    await saveJournalEntry({ mood, text, tags });
     setWriting(false);
     setText("");
     setTags([]);
     setMood("good");
   };
 
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString("en-US", {
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background py-10">
+        <Text className="text-muted-foreground">Loading your journal…</Text>
+      </View>
+    );
+  }
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -128,7 +118,7 @@ export function JournalTab() {
           </Pressable>
 
           <View className="flex-col gap-3">
-            {entries.map((entry) => {
+            {journalEntries.map((entry) => {
               const m = MOODS.find((mm) => mm.id === entry.mood)!;
               return (
                 <Pressable
@@ -140,11 +130,23 @@ export function JournalTab() {
                     <Text className="text-muted-foreground">
                       {formatDate(entry.date)}
                     </Text>
-                    <Text
-                      className={`px-2 py-0.5 rounded-full border text-xs ${m.color}`}
-                    >
-                      {m.emoji} {m.label}
-                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <Text
+                        className={`px-2 py-0.5 rounded-full border text-xs ${m.color}`}
+                      >
+                        {m.emoji} {m.label}
+                      </Text>
+                      <Pressable
+                        onPress={() => removeJournalEntry(entry.id)}
+                        className="rounded-full p-1 bg-secondary border border-border"
+                      >
+                        <MaterialIcons
+                          name="delete"
+                          size={16}
+                          color="#ef4444"
+                        />
+                      </Pressable>
+                    </View>
                   </View>
                   <Text className="text-foreground" numberOfLines={2}>
                     {entry.text}
@@ -164,7 +166,7 @@ export function JournalTab() {
                 </Pressable>
               );
             })}
-            {entries.length === 0 && (
+            {journalEntries.length === 0 && (
               <View className="text-center py-12 items-center gap-3">
                 <MaterialIcons
                   name="menu-book"
@@ -305,12 +307,22 @@ export function JournalTab() {
                     ))}
                   </View>
                 )}
-                <Pressable
-                  onPress={() => setViewEntry(null)}
-                  className="mt-5 w-full py-2 rounded-xl bg-secondary"
-                >
-                  <Text className="text-foreground text-center">Close</Text>
-                </Pressable>
+                <View className="flex-row gap-2 mt-5">
+                  <Pressable
+                    onPress={() => removeJournalEntry(viewEntry.id)}
+                    className="flex-1 py-3 rounded-xl bg-destructive items-center"
+                  >
+                    <Text className="text-primary-foreground text-center">
+                      Delete entry
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setViewEntry(null)}
+                    className="flex-1 py-3 rounded-xl bg-secondary items-center"
+                  >
+                    <Text className="text-foreground text-center">Close</Text>
+                  </Pressable>
+                </View>
               </>
             )}
           </Pressable>

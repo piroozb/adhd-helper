@@ -1,6 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useAppData } from "../lib/app-data";
+import { AnimatedToggle } from "./ui/animated-toggle";
 
 type Recurrence = "once" | "daily" | "weekdays" | "weekends";
 type Reminder = {
@@ -23,41 +25,6 @@ const CATEGORIES = [
   "📋 Task",
 ];
 
-const initialReminders: Reminder[] = [
-  {
-    id: "1",
-    title: "Take medication",
-    time: "08:00",
-    recurrence: "daily",
-    active: true,
-    category: "💊 Medication",
-  },
-  {
-    id: "2",
-    title: "Drink water",
-    time: "10:00",
-    recurrence: "daily",
-    active: true,
-    category: "💧 Hydration",
-  },
-  {
-    id: "3",
-    title: "5-minute stretch break",
-    time: "14:00",
-    recurrence: "weekdays",
-    active: true,
-    category: "🏃 Movement",
-  },
-  {
-    id: "4",
-    title: "Wind-down routine",
-    time: "21:30",
-    recurrence: "daily",
-    active: false,
-    category: "😴 Sleep",
-  },
-];
-
 const RECURRENCE_LABELS: Record<Recurrence, string> = {
   once: "Once",
   daily: "Every day",
@@ -66,41 +33,55 @@ const RECURRENCE_LABELS: Record<Recurrence, string> = {
 };
 
 export function RemindersTab() {
-  const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const {
+    reminders,
+    loading,
+    addReminder,
+    toggleReminder,
+    removeReminder,
+    settings,
+  } = useAppData();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("09:00");
   const [recurrence, setRecurrence] = useState<Recurrence>("daily");
   const [category, setCategory] = useState(CATEGORIES[0]);
 
-  const save = () => {
+  const save = async () => {
     if (!title.trim()) return;
-    setReminders([
-      {
-        id: Date.now().toString(),
-        title,
-        time,
-        recurrence,
-        active: true,
-        category,
-      },
-      ...reminders,
-    ]);
+    await addReminder({ title, time, recurrence, category });
     setAdding(false);
     setTitle("");
     setTime("09:00");
     setRecurrence("daily");
   };
 
-  const toggle = (id: string) =>
-    setReminders(
-      reminders.map((r) => (r.id === id ? { ...r, active: !r.active } : r)),
-    );
+  const accentColor =
+    {
+      lavender: "#7c6bae",
+      sage: "#6a9c64",
+      sky: "#4a90b8",
+      rose: "#b8556a",
+      amber: "#b87c3a",
+    }[settings.accentColor] ?? "#7c6bae";
 
-  const remove = (id: string) =>
-    setReminders(reminders.filter((r) => r.id !== id));
+  const toggle = async (id: string) => {
+    await toggleReminder(id);
+  };
+
+  const remove = async (id: string) => {
+    await removeReminder(id);
+  };
 
   const sorted = [...reminders].sort((a, b) => a.time.localeCompare(b.time));
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background py-10">
+        <Text className="text-muted-foreground">Loading your reminders…</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView className="flex-col gap-5">
@@ -195,14 +176,11 @@ export function RemindersTab() {
             key={r.id}
             className={`flex-row items-center gap-3 px-4 py-3 rounded-xl bg-card border ${r.active ? "" : "opacity-50"}`}
           >
-            <Pressable
-              onPress={() => toggle(r.id)}
-              className={`w-10 h-6 rounded-full ${r.active ? "bg-primary" : "bg-muted"} justify-center`}
-            >
-              <View
-                className={`w-4 h-4 rounded-full bg-white ${r.active ? "ml-6" : "ml-1"}`}
-              />
-            </Pressable>
+            <AnimatedToggle
+              checked={r.active}
+              onChange={() => toggle(r.id)}
+              activeColor={accentColor}
+            />
             <View className="flex-1">
               <Text
                 className={`${r.active ? "text-foreground" : "text-muted-foreground"}`}
@@ -226,8 +204,11 @@ export function RemindersTab() {
                 </Text>
               </View>
             </View>
-            <Pressable onPress={() => remove(r.id)} className="opacity-0">
-              <MaterialIcons name="delete" size={15} />
+            <Pressable
+              onPress={() => remove(r.id)}
+              className="rounded-full p-2 bg-secondary border border-border"
+            >
+              <MaterialIcons name="delete" size={16} color="#ef4444" />
             </Pressable>
           </View>
         ))}
